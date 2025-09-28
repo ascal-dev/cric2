@@ -193,311 +193,145 @@
 
 
     </style>
-</head>
+
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <h3>Categories</h3>
-            <ul class="category-list" id="categoryList"></ul>
-        </div>
-        <div class="main">
-            <div class="tabs">
-                <div class="tab active" data-tab="live">Live (<span id="liveCount">0</span>)</div>
-                <div class="tab" data-tab="upcoming">Upcoming (<span id="upcomingCount">0</span>)</div>
-                <div class="tab" data-tab="completed">Completed (<span id="completedCount">0</span>)</div>
-                <div class="tab" data-tab="total">Total (<span id="totalCount">0</span>)</div>
-            </div>
-            <div id="live" class="tab-content active">
-                <div id="liveContent" class="grid"></div>
-            </div>
-            <div id="upcoming" class="tab-content">
-                <div id="upcomingContent" class="grid"></div>
-            </div>
-            <div id="completed" class="tab-content">
-                <div id="completedContent" class="grid"></div>
-            </div>
-            <div id="total" class="tab-content">
-                <div id="totalContent" class="grid"></div>
-            </div>
-            <div class="last-updated" id="lastUpdated"></div>
-            <div id="errorLog"></div>
-            <!-- Streams modal -->
-            <div id="streamsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:9999;"> 
-                <div style="background:#111; color:#fff; padding:20px; border-radius:8px; max-width:800px; width:90%; max-height:80%; overflow:auto;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <h3 style="margin:0;">All Streams</h3>
-                        <button id="closeStreamsModal" style="background:#ff4500;border:none;padding:6px 10px;border-radius:6px;color:#000;font-weight:bold;cursor:pointer;">Close</button>
-                    </div>
-                    <div id="streamsList" style="display:flex;flex-direction:column;gap:8px;"></div>
-                </div>
-            </div>
-        </div>
+  <div class="container">
+    <div class="categories">
+      <h2>Categories</h2>
+      <select id="categoryFilter">
+        <option value="">All Categories</option>
+      </select>
     </div>
 
-    <script>
-        const API_BASE = 'http://localhost:3000/api';
-        let allData = { matches: [], categories: [], total_matches: 0, live_matches: 0, upcoming_matches: 0 };
-        let currentCategory = 'Cricket';
+    <div class="stats">
+      <p>Live (<span id="liveCount">0</span>)</p>
+      <p>Upcoming (<span id="upcomingCount">0</span>)</p>
+      <p>Completed (<span id="completedCount">0</span>)</p>
+      <p>Total (<span id="totalCount">0</span>)</p>
+    </div>
 
-        async function fetchData() {
-            const errorLog = document.getElementById('errorLog');
-            const loadingEl = document.createElement('div');
-            loadingEl.className = 'loading';
-            loadingEl.textContent = 'Loading matches...';
-            document.querySelector('.main').insertBefore(loadingEl, document.querySelector('.tabs').nextSibling);
+    <div class="matches" id="liveMatches">
+      <h3>Live Matches</h3>
+    </div>
+    <div class="matches" id="upcomingMatches">
+      <h3>Upcoming Matches</h3>
+    </div>
+    <div class="matches" id="completedMatches">
+      <h3>Completed Matches</h3>
+    </div>
 
-            try {
-                const response = await fetch(`${API_BASE}/matches`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                const data = await response.json();
-                allData = data;
-                document.getElementById('lastUpdated').textContent = `Last updated: ${data.last_updated || new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`;
-                loadingEl.remove();
-                renderAll();
-            } catch (error) {
-                console.error('Fetch error:', error);
-                loadingEl.remove();
-                errorLog.textContent = `Error: ${error.message}. Retrying...`;
-                setTimeout(fetchData, 5000);
-            }
-        }
+    <div id="streamModal" class="modal">
+      <div class="modal-content">
+        <h2>All Streams</h2>
+        <ul id="streamList"></ul>
+        <button onclick="document.getElementById('streamModal').style.display='none'">Close</button>
+      </div>
+    </div>
+  </div>
 
-        function updateCounts() {
-            document.getElementById('liveCount').textContent = allData.live_matches || 0;
-            document.getElementById('upcomingCount').textContent = allData.upcoming_matches || 0;
-            document.getElementById('completedCount').textContent = (allData.total_matches || 0) - allData.live_matches - allData.upcoming_matches;
-            document.getElementById('totalCount').textContent = allData.total_matches || 0;
-        }
+  <script>
+    const API_URL = 'https://raw.githubusercontent.com/jitendra-unatti/fancode/main/data/fancode.json';
 
-        function renderCategories() {
-            const list = document.getElementById('categoryList');
-            list.innerHTML = '';
-            const categories = ['All', ...allData.categories];
-            categories.forEach(cat => {
-                const li = document.createElement('li');
-                li.textContent = cat;
-                li.dataset.category = cat;
-                if (cat === currentCategory) li.classList.add('active');
-                li.addEventListener('click', () => {
-                    document.querySelector('.category-list li.active')?.classList.remove('active');
-                    li.classList.add('active');
-                    currentCategory = cat;
-                    renderAll();
-                });
-                list.appendChild(li);
-            });
-        }
+    async function loadMatches() {
+      try {
+        // Fetch fresh data on every load
+        const response = await fetch(API_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to fetch data');
+        const data = await response.json();
 
-        function renderGridCards(containerId, matches, tabName) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = matches.length === 0 ? '<div class="no-matches">No matches available</div>' : '';
-            matches.forEach(match => {
-                const card = document.createElement('div');
-                card.className = 'card';
-               const teamA = match.teams[0] || { name: 'Team A', shortName: 'TA', flag: { src: '' }, isWinner: false, footballScore: null, cricketScore: [] };
-               const teamB = match.teams[1] || { name: 'Team B', shortName: 'TB', flag: { src: '' }, isWinner: false, footballScore: null, cricketScore: [] };
+        // Process matches
+        const processedMatches = (data.matches || []).map(match => ({
+          ...match,
+          teams: match.teams || [],
+          streams: {
+            adfree_stream: match.adfree_stream,
+            dai_stream: match.dai_stream,
+            Primary_Playback_URL: match.STREAMING_CDN?.Primary_Playback_URL,
+            fancode_cdn: match.STREAMING_CDN?.fancode_cdn,
+            dai_google_cdn: match.STREAMING_CDN?.dai_google_cdn,
+            cloudfront_cdn: match.STREAMING_CDN?.cloudfront_cdn,
+            sony_cdn: match.STREAMING_CDN?.sony_cdn,
+            hindi_stream: match.STREAMING_CDN?.hindi_stream,
+          }
+        }));
 
-                const streams = {
-                    adfree_stream: match.adfree_stream,
-                    dai_stream: match.dai_stream,
-                    Primary_Playback_URL: match.STREAMING_CDN?.Primary_Playback_URL,
-                    fancode_cdn: match.STREAMING_CDN?.fancode_cdn,
-                    dai_google_cdn: match.STREAMING_CDN?.dai_google_cdn,
-                    cloudfront_cdn: match.STREAMING_CDN?.cloudfront_cdn,
-                    sony_cdn: match.STREAMING_CDN?.sony_cdn,
-                    hindi_stream: match.STREAMING_CDN?.hindi_stream
-                };
-                const liveStreams = Object.entries(streams)
-                    .filter(([key, value]) => {
-                        if (typeof value !== 'string' || !value) {
-                            console.warn(`Invalid stream URL for match ${match.match_id}, key ${key}: ${value}`);
-                            return false;
-                        }
-                        const isValid = value.toLowerCase().includes('.m3u8') && value.startsWith('http');
-                        if (!isValid) console.warn(`Invalid stream URL for match ${match.match_id}, key ${key}: ${value}`);
-                        return isValid && match.status === 'LIVE';
-                    })
-                    .map(([key, value]) => [key, value]);
-                const isStarted = match.streamingStatus === 'STARTED';
+        // Categorize matches
+        const liveMatches = processedMatches.filter(m => m.status === 'LIVE');
+        const upcomingMatches = processedMatches.filter(m => m.status === 'NOT_STARTED');
+        const completedMatches = processedMatches.filter(m => m.status !== 'LIVE' && m.status !== 'NOT_STARTED');
+        const categories = [...new Set(processedMatches.map(m => m.category))];
 
-                let statusBadge = '';
-                if (tabName === 'live') statusBadge = '<div class="status-badge">LIVE</div>';
-                else if (tabName === 'completed') statusBadge = '<div class="status-badge">COMPLETED</div>';
-                else if (tabName === 'upcoming') statusBadge = '<div class="status-badge">UPCOMING</div>';
+        // Update stats
+        document.getElementById('liveCount').textContent = liveMatches.length;
+        document.getElementById('upcomingCount').textContent = upcomingMatches.length;
+        document.getElementById('completedCount').textContent = completedMatches.length;
+        document.getElementById('totalCount').textContent = processedMatches.length;
 
-                let teamsHtml = `
-                    <div class="teams">
-                        <div class="team">
-                            ${teamA.shortName}
-                        </div>
-                        <div class="vs">V/s</div>
-                        <div class="team">
-                            ${teamB.shortName}
-                        </div>
-                    </div>
-                `;
-
-                // For completed matches → add scores & winner
-                if (tabName === 'completed') {
-                    const scoreA = teamA.footballScore?.points || teamA.cricketScore?.[0] || 0;
-                    const scoreB = teamB.footballScore?.points || teamB.cricketScore?.[0] || 0;
-                    const winner = teamA.isWinner ? teamA.name : teamB.isWinner ? teamB.name : null;
-
-                    teamsHtml = `
-                        <div class="teams">
-                            <div class="team">
-                                ${teamA.shortName} <span class="score">(${scoreA})</span>
-                            </div>
-                            <div class="vs">V/s</div>
-                            <div class="team">
-                                ${teamB.shortName} <span class="score">(${scoreB})</span>
-                            </div>
-                        </div>
-                        ${winner ? `<div class="winner">Winner: ${winner}</div>` : ''}
-                    `;
-                }
-
-                let cardContent = '';
-                if (tabName === 'live') {
-                    cardContent = `
-                        <div class="card-content">
-                            ${statusBadge}
-                            <div class="match-name">${match.title}</div>
-                            <div class="tournament">${match.tournament}</div>
-                            <div class="start-time">Starts: ${match.startTime}</div>
-                            ${isStarted ? `<div class="language">Language: ${match.language}</div>` : ''}
-                            ${teamsHtml}
-                            <div class="streaming-status">Status: ${match.streamingStatus}</div>
-                           <div class="stream-links">
-                            ${liveStreams.slice(0, 8).map(([key, url]) => `
-                                <button class="${key}" onclick="window.location.href='player.html?id=${encodeURIComponent(match.match_id)}&cdn=${encodeURIComponent(key)}'">
-                                    ${key.toUpperCase()}
-                                </button>`).join('')}
-                            ${liveStreams.length > 4
-                                ? `<button onclick="showAllStreams('${JSON.stringify(streams).replace(/"/g, '&quot;')}', '${encodeURIComponent(match.match_id)}')">
-                                    +${liveStreams.length -6}
-                                </button>` 
-                                : ''}
-                        </div>
-
-                        </div>
-                    `;
-                } else if (tabName === 'completed') {
-                    cardContent = `
-                        <div class="card-content">
-                            ${statusBadge}
-                            <div class="match-name">${match.title}</div>
-                            <div class="tournament">${match.tournament}</div>
-                            <div class="start-time">Starts: ${match.startTime}</div>
-                            ${teamsHtml}
-                            <div class="streaming-status">Status: ${match.status}</div>
-                        </div>
-                    `;
-                } else if (tabName === 'upcoming') {
-                    cardContent = `
-                        <div class="card-content">
-                            ${statusBadge}
-                            <div class="match-name">${match.title}</div>
-                            <div class="tournament">${match.tournament}</div>
-                            <div class="start-time">Starts: ${match.startTime}</div>
-                            ${teamsHtml}
-                            <div class="streaming-status">Status: ${match.status}</div>
-                        </div>
-                    `;
-                } else if (tabName === 'total') {
-                    cardContent = `
-                        <div class="card-content">
-                            ${statusBadge}
-                            <div class="match-name">${match.title}</div>
-                            <div class="tournament">${match.tournament}</div>
-                            <div class="start-time">Starts: ${match.startTime}</div>
-                            ${teamsHtml}
-                            <div class="streaming-status">Status: ${match.status}</div>
-                        </div>
-                    `;
-                }
-
-                card.innerHTML = `
-                    <img src="${match.image || match.image_cdn?.APP || 'https://via.placeholder.com/300x288'}" alt="${match.title}">
-                    ${cardContent}
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function renderAll() {
-            renderCategories();
-            updateCounts();
-            const now = new Date('2025-09-28T10:38:00+05:30'); // Current IST time
-            const tenDaysMs = 10 * 24 * 60 * 60 * 1000;
-            const tenDaysAgo = new Date(now.getTime() - tenDaysMs);
-            const tenDaysAhead = new Date(now.getTime() + tenDaysMs);
-
-            ['live', 'upcoming', 'completed', 'total'].forEach(tab => {
-                const matches = allData.matches
-                    .filter(m => {
-                        const isLive = m.status === 'LIVE';
-                        const isUpcoming = m.status === 'NOT_STARTED';
-                        const isCompleted = m.status === 'COMPLETED';
-                        return (tab === 'live' && isLive) || (tab === 'upcoming' && isUpcoming) ||
-                               (tab === 'completed' && isCompleted) || tab === 'total';
-                    })
-                    .filter(m => currentCategory === 'All' || m.category === currentCategory)
-                    .filter(m => {
-                        const startTime = new Date(m.startTime);
-                        return startTime >= tenDaysAgo && startTime <= tenDaysAhead;
-                    });
-                renderGridCards(`${tab}Content`, matches, tab);
-            });
-        }
-
-        window.showAllStreams = function(streamsJson, matchId) {
-            const streams = JSON.parse(streamsJson.replace(/&quot;/g, '"'));
-            const modal = document.getElementById('streamsModal');
-            const streamsList = document.getElementById('streamsList');
-            streamsList.innerHTML = '';
-            
-            Object.entries(streams).forEach(([key, value]) => {
-                if (typeof value === 'string' && value.toLowerCase().includes('.m3u8') && value.startsWith('http')) {
-                    const button = document.createElement('button');
-                    button.textContent = key;
-                    button.style.padding = '8px 12px';
-                    button.style.background = '#ff4500';
-                    button.style.border = 'none';
-                    button.style.borderRadius = '6px';
-                    button.style.cursor = 'pointer';
-                    button.style.color = 'white';
-                    button.addEventListener('click', () => {
-                        window.location.href = `player.html?id=${encodeURIComponent(matchId)}&cdn=${encodeURIComponent(key)}`;
-                    });
-                    streamsList.appendChild(button);
-                }
-            });
-            
-            modal.style.display = 'flex';
-        };
-
-        document.getElementById('closeStreamsModal').addEventListener('click', () => {
-            document.getElementById('streamsModal').style.display = 'none';
+        // Update category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        categories.forEach(category => {
+          const option = document.createElement('option');
+          option.value = category;
+          option.textContent = category;
+          categoryFilter.appendChild(option);
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchData();
-            setInterval(fetchData, 30000);
+        // Display matches
+        function displayMatches(matches, containerId) {
+          const container = document.getElementById(containerId);
+          container.innerHTML = `<h3>${containerId.replace('Matches', ' Matches')}</h3>`;
+          matches.forEach(match => {
+            const div = document.createElement('div');
+            div.className = 'match-card';
+            div.innerHTML = `
+              <h4>${match.title || 'Match'}</h4>
+              <p>Teams: ${match.teams.join(' vs ') || 'Unknown'}</p>
+              <p>Status: ${match.status || 'Unknown'}</p>
+              <p>Category: ${match.category || 'Unknown'}</p>
+              <button onclick="showStreams('${match.match_id}', ${JSON.stringify(match.streams)})">View Streams</button>
+            `;
+            container.appendChild(div);
+          });
+        }
 
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    document.querySelector('.tab.active').classList.remove('active');
-                    document.querySelector('.tab-content.active').classList.remove('active');
-                    tab.classList.add('active');
-                    document.getElementById(tab.dataset.tab).classList.add('active');
-                    renderAll();
-                });
-            });
+        displayMatches(liveMatches, 'liveMatches');
+        displayMatches(upcomingMatches, 'upcomingMatches');
+        displayMatches(completedMatches, 'completedMatches');
 
-            // Default to Live tab
-            document.querySelector('[data-tab="live"]').click();
+        // Filter by category
+        categoryFilter.addEventListener('change', () => {
+          const selectedCategory = categoryFilter.value;
+          const filteredMatches = selectedCategory
+            ? processedMatches.filter(m => m.category === selectedCategory)
+            : processedMatches;
+          const filteredLive = filteredMatches.filter(m => m.status === 'LIVE');
+          const filteredUpcoming = filteredMatches.filter(m => m.status === 'NOT_STARTED');
+          const filteredCompleted = filteredMatches.filter(m => m.status !== 'LIVE' && m.status !== 'NOT_STARTED');
+          displayMatches(filteredLive, 'liveMatches');
+          displayMatches(filteredUpcoming, 'upcomingMatches');
+          displayMatches(filteredCompleted, 'completedMatches');
         });
-    </script>
+      } catch (err) {
+        console.error('Fetch error:', err);
+        alert('Failed to load matches: ' + err.message);
+      }
+    }
+
+    function showStreams(matchId, streams) {
+      const streamList = document.getElementById('streamList');
+      streamList.innerHTML = '';
+      Object.entries(streams).forEach(([key, url]) => {
+        if (url) {
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="/player.html?matchId=${matchId}&cdn=${key}" target="_blank">${key}</a>`;
+          streamList.appendChild(li);
+        }
+      });
+      document.getElementById('streamModal').style.display = 'block';
+    }
+
+    // Load matches on page load
+    window.onload = loadMatches;
+  </script>
 </body>
 </html>
