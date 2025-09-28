@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FanCode Live Matches</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0d0d0d; color: #e0e0e0; }
+        .container { display: flex; min-height: 100vh; }
+        .sidebar { width: 120px; background: #1c1c1c; padding: 20px; border-right: 2px solid #ff4500; overflow-y: auto; margin-top: 20px; }
+        .sidebar h3 { margin-bottom: 15px; color: #ff4500; text-align: center; }
+        .category-list, .tournament-filters { list-style: none; }
+        .category-list li, .tournament-filters button { padding: 12px; cursor: pointer; border-bottom: 1px solid #333; transition: background 0.3s; display: block; width: 100%; text-align: left; background: none; border: none; color: #e0e0e0; }
+        .category-list li:hover, .tournament-filters button:hover { background: #333; }
+        .category-list li.active, .tournament-filters button.active { background: #ff4500; color: #000; font-weight: bold; }
+        .main { flex: 1; padding: 20px; overflow-y: auto; }
+        .tabs { display: flex; background: #1c1c1c; border-bottom: 2px solid #ff4500; margin-bottom: 20px; }
+        .tab { padding: 15px 25px; cursor: pointer; border-right: 1px solid #333; transition: background 0.3s; font-weight: bold; }
+        .tab:hover { background: #333; }
+        .tab.active { background: #ff4500; color: #000; }
+        .tab-content { display: none; animation: fadeIn 0.3s; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 20px; }
+        .card { background: #1c1c1c; border: 2px solid #ff4500; border-radius: 12px; overflow: hidden; transition: transform 0.3s; position: relative;height: auto; width: 250px; font-size: 0em;  }
+        .card:hover { transform: translateY(-5px); }
+         .card img { width: 100%; height: 188px; object-fit:cover; background: #fff; display: block; margin: 0px; padding: 0px; }
+
+
+        .card-content { padding: 10px;}
+        .status-badge { position: absolute; top: 10px; right: 10px; background: #ff0000; color: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .match-name { font-size: 18px; font-weight: bold; margin-bottom: 5px; color: #ff4500; }
+        .tournament { font-size: 14px; color: #ccc; margin-bottom: 5px; }
+        .start-time { color: #28a745; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .language { color: #007bff; margin-bottom: 5px; font-size: 14px; }
+        .streaming-status { color: #6c757d; font-size: 12px; margin-bottom: 10px; }
+        .stream-links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+        .stream-links button { padding: 5px; border: none; border-radius: 6px; cursor: pointer; font-size: 7px; transition: background 0.3s; color: white; }
+        .stream-links button.adfree_stream { background: #ff4500; }
+        .stream-links button.dai_stream { background: #007bff; }
+        .stream-links button.Primary_Playback_URL { background: #28a745; }
+        .stream-links button.fancode_cdn { background: #6c757d; }
+        .stream-links button.dai_google_cdn { background: #dc3545; }
+        .stream-links button.cloudfront_cdn { background: #ffc107; }
+        .stream-links button.sony_cdn { background: #17a2b8; }
+        .stream-links button.hindi_stream { background: #6c25be; }
+        .stream-links button:hover { opacity: 0.8; }
+        .no-matches { text-align: center; color: #666; margin: 40px 0; font-style: italic; }
+        #errorLog { color: #ff0000; text-align: center; margin: 10px 0; font-weight: bold; padding: 10px; border-radius: 6px; }
+        .last-updated { text-align: center; display: block; margin: 10px 0; color: #ccc; font-size: 12px; }
+        .loading { text-align: center; margin: 20px; color: #ff4500; }
+        /* =================== 1024px =================== */
+@media (max-width: 1024px) {
+    .grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    .sidebar {
+        width: 100px;
+        padding: 15px;
+        font-size: 15px;
+    }
+    .tab {
+        font-size: 15px;
+    }
+}
+
+/* =================== 900px =================== */
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .sidebar {
+        width: 80px;
+        padding: 10px;
+        font-size: 12px;
+    }
+    .tab {
+        font-size: 14px;
+    }
+    .match-name {
+        font-size: 16px;
+    }
+    .tournament,
+    .start-time,
+    .language {
+        font-size: 13px;
+    }
+}
+
+/* =================== 600px =================== */
+@media (max-width: 850px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .sidebar {
+        width: 60px;
+        padding: 6px;
+        font-size: 10px;
+    }
+    .tab {
+        font-size: 12px;
+    }
+    .match-name {
+        font-size: 14px;
+    }
+    .tournament,
+    .start-time,
+    .language {
+        font-size: 12px;
+    }
+}
+
+/* =================== 500px =================== */
+@media (max-width: 550px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+    .tabs {
+        flex-direction: column;
+        font-size: 11px;
+    }
+    .tab {
+        font-size: 10px;
+    }
+    .sidebar {
+        font-size: 9px;
+    }
+    .match-name {
+        font-size: 12px;
+    }
+    .tournament,
+    .start-time,
+    .language {
+        font-size: 11px;
+    }
+}
+
+/* =================== 400px =================== */
+@media (max-width: 400px) {
+    .sidebar {
+        font-size: 7px;
+        padding: 5px;
+    }
+    .tab {
+       font-size: 8px;
+    }
+    .match-name {
+        font-size: 10px;
+    }
+    .tournament,
+    .start-time,
+    .language {
+        font-size: 9px;
+    }
+}
+
+/* =================== 300px =================== */
+@media (max-width: 300px) {
+    .sidebar {
+        font-size: 5px;
+    }
+    .tabs {
+        font-size: 7px;
+    }
+    .match-name {
+        font-size: 9px;
+    }
+    .tournament,
+    .start-time,
+    .language {
+        font-size: 8px;
+    }
+}
+
+/* =================== 200px =================== */
+@media (max-width: 200px) {
+    .sidebar {
+        display: none;
+    }
+    .tabs {
+        font-size: 6px;
+    }
+    .match-name {
+        font-size: 8px;
+    }
+    .tournament,
+    .start-time,
+    .language {
+        font-size: 7px;
+    }
+}
+
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h3>Categories</h3>
+            <ul class="category-list" id="categoryList"></ul>
+        </div>
+        <div class="main">
+            <div class="tabs">
+                <div class="tab active" data-tab="live">Live (<span id="liveCount">0</span>)</div>
+                <div class="tab" data-tab="upcoming">Upcoming (<span id="upcomingCount">0</span>)</div>
+                <div class="tab" data-tab="completed">Completed (<span id="completedCount">0</span>)</div>
+                <div class="tab" data-tab="total">Total (<span id="totalCount">0</span>)</div>
+            </div>
+            <div id="live" class="tab-content active">
+                <div id="liveContent" class="grid"></div>
+            </div>
+            <div id="upcoming" class="tab-content">
+                <div id="upcomingContent" class="grid"></div>
+            </div>
+            <div id="completed" class="tab-content">
+                <div id="completedContent" class="grid"></div>
+            </div>
+            <div id="total" class="tab-content">
+                <div id="totalContent" class="grid"></div>
+            </div>
+            <div class="last-updated" id="lastUpdated"></div>
+            <div id="errorLog"></div>
+            <!-- Streams modal -->
+            <div id="streamsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:9999;"> 
+                <div style="background:#111; color:#fff; padding:20px; border-radius:8px; max-width:800px; width:90%; max-height:80%; overflow:auto;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3 style="margin:0;">All Streams</h3>
+                        <button id="closeStreamsModal" style="background:#ff4500;border:none;padding:6px 10px;border-radius:6px;color:#000;font-weight:bold;cursor:pointer;">Close</button>
+                    </div>
+                    <div id="streamsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let allData = { matches: [], categories: [], total_matches: 0, live_matches: 0, upcoming_matches: 0 };
+        let currentCategory = 'Cricket';
+
+        async function fetchData() {
+            const errorLog = document.getElementById('errorLog');
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'loading';
+            loadingEl.textContent = 'Loading matches...';
+            document.querySelector('.main').insertBefore(loadingEl, document.querySelector('.tabs').nextSibling);
+
+            try {
+                const response = await fetch(`${API_BASE}/matches`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const data = await response.json();
+                allData = data;
+                document.getElementById('lastUpdated').textContent = `Last updated: ${data.last_updated || new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' })}`;
+                loadingEl.remove();
+                renderAll();
+            } catch (error) {
+                console.error('Fetch error:', error);
+                loadingEl.remove();
+                errorLog.textContent = `Error: ${error.message}. Retrying...`;
+                setTimeout(fetchData, 5000);
+            }
+        }
+
+        function updateCounts() {
+            document.getElementById('liveCount').textContent = allData.live_matches || 0;
+            document.getElementById('upcomingCount').textContent = allData.upcoming_matches || 0;
+            document.getElementById('completedCount').textContent = (allData.total_matches || 0) - allData.live_matches - allData.upcoming_matches;
+            document.getElementById('totalCount').textContent = allData.total_matches || 0;
+        }
+
+        function renderCategories() {
+            const list = document.getElementById('categoryList');
+            list.innerHTML = '';
+            const categories = ['All', ...allData.categories];
+            categories.forEach(cat => {
+                const li = document.createElement('li');
+                li.textContent = cat;
+                li.dataset.category = cat;
+                if (cat === currentCategory) li.classList.add('active');
+                li.addEventListener('click', () => {
+                    document.querySelector('.category-list li.active')?.classList.remove('active');
+                    li.classList.add('active');
+                    currentCategory = cat;
+                    renderAll();
+                });
+                list.appendChild(li);
+            });
+        }
+
+        function renderGridCards(containerId, matches, tabName) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = matches.length === 0 ? '<div class="no-matches">No matches available</div>' : '';
+            matches.forEach(match => {
+                const card = document.createElement('div');
+                card.className = 'card';
+               const teamA = match.teams[0] || { name: 'Team A', shortName: 'TA', flag: { src: '' }, isWinner: false, footballScore: null, cricketScore: [] };
+               const teamB = match.teams[1] || { name: 'Team B', shortName: 'TB', flag: { src: '' }, isWinner: false, footballScore: null, cricketScore: [] };
+
+                const streams = {
+                    adfree_stream: match.adfree_stream,
+                    dai_stream: match.dai_stream,
+                    Primary_Playback_URL: match.STREAMING_CDN?.Primary_Playback_URL,
+                    fancode_cdn: match.STREAMING_CDN?.fancode_cdn,
+                    dai_google_cdn: match.STREAMING_CDN?.dai_google_cdn,
+                    cloudfront_cdn: match.STREAMING_CDN?.cloudfront_cdn,
+                    sony_cdn: match.STREAMING_CDN?.sony_cdn,
+                    hindi_stream: match.STREAMING_CDN?.hindi_stream
+                };
+                const liveStreams = Object.entries(streams)
+                    .filter(([key, value]) => {
+                        if (typeof value !== 'string' || !value) {
+                            console.warn(`Invalid stream URL for match ${match.match_id}, key ${key}: ${value}`);
+                            return false;
+                        }
+                        const isValid = value.toLowerCase().includes('.m3u8') && value.startsWith('http');
+                        if (!isValid) console.warn(`Invalid stream URL for match ${match.match_id}, key ${key}: ${value}`);
+                        return isValid && match.status === 'LIVE';
+                    })
+                    .map(([key, value]) => [key, value]);
+                const isStarted = match.streamingStatus === 'STARTED';
+
+                let statusBadge = '';
+                if (tabName === 'live') statusBadge = '<div class="status-badge">LIVE</div>';
+                else if (tabName === 'completed') statusBadge = '<div class="status-badge">COMPLETED</div>';
+                else if (tabName === 'upcoming') statusBadge = '<div class="status-badge">UPCOMING</div>';
+
+                let teamsHtml = `
+                    <div class="teams">
+                        <div class="team">
+                            ${teamA.shortName}
+                        </div>
+                        <div class="vs">V/s</div>
+                        <div class="team">
+                            ${teamB.shortName}
+                        </div>
+                    </div>
+                `;
+
+                // For completed matches → add scores & winner
+                if (tabName === 'completed') {
+                    const scoreA = teamA.footballScore?.points || teamA.cricketScore?.[0] || 0;
+                    const scoreB = teamB.footballScore?.points || teamB.cricketScore?.[0] || 0;
+                    const winner = teamA.isWinner ? teamA.name : teamB.isWinner ? teamB.name : null;
+
+                    teamsHtml = `
+                        <div class="teams">
+                            <div class="team">
+                                ${teamA.shortName} <span class="score">(${scoreA})</span>
+                            </div>
+                            <div class="vs">V/s</div>
+                            <div class="team">
+                                ${teamB.shortName} <span class="score">(${scoreB})</span>
+                            </div>
+                        </div>
+                        ${winner ? `<div class="winner">Winner: ${winner}</div>` : ''}
+                    `;
+                }
+
+                let cardContent = '';
+                if (tabName === 'live') {
+                    cardContent = `
+                        <div class="card-content">
+                            ${statusBadge}
+                            <div class="match-name">${match.title}</div>
+                            <div class="tournament">${match.tournament}</div>
+                            <div class="start-time">Starts: ${match.startTime}</div>
+                            ${isStarted ? `<div class="language">Language: ${match.language}</div>` : ''}
+                            ${teamsHtml}
+                            <div class="streaming-status">Status: ${match.streamingStatus}</div>
+                           <div class="stream-links">
+                            ${liveStreams.slice(0, 8).map(([key, url]) => `
+                                <button class="${key}" onclick="window.location.href='player.html?id=${encodeURIComponent(match.match_id)}&cdn=${encodeURIComponent(key)}'">
+                                    ${key.toUpperCase()}
+                                </button>`).join('')}
+                            ${liveStreams.length > 4
+                                ? `<button onclick="showAllStreams('${JSON.stringify(streams).replace(/"/g, '&quot;')}', '${encodeURIComponent(match.match_id)}')">
+                                    +${liveStreams.length -6}
+                                </button>` 
+                                : ''}
+                        </div>
+
+                        </div>
+                    `;
+                } else if (tabName === 'completed') {
+                    cardContent = `
+                        <div class="card-content">
+                            ${statusBadge}
+                            <div class="match-name">${match.title}</div>
+                            <div class="tournament">${match.tournament}</div>
+                            <div class="start-time">Starts: ${match.startTime}</div>
+                            ${teamsHtml}
+                            <div class="streaming-status">Status: ${match.status}</div>
+                        </div>
+                    `;
+                } else if (tabName === 'upcoming') {
+                    cardContent = `
+                        <div class="card-content">
+                            ${statusBadge}
+                            <div class="match-name">${match.title}</div>
+                            <div class="tournament">${match.tournament}</div>
+                            <div class="start-time">Starts: ${match.startTime}</div>
+                            ${teamsHtml}
+                            <div class="streaming-status">Status: ${match.status}</div>
+                        </div>
+                    `;
+                } else if (tabName === 'total') {
+                    cardContent = `
+                        <div class="card-content">
+                            ${statusBadge}
+                            <div class="match-name">${match.title}</div>
+                            <div class="tournament">${match.tournament}</div>
+                            <div class="start-time">Starts: ${match.startTime}</div>
+                            ${teamsHtml}
+                            <div class="streaming-status">Status: ${match.status}</div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <img src="${match.image || match.image_cdn?.APP || 'https://via.placeholder.com/300x288'}" alt="${match.title}">
+                    ${cardContent}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderAll() {
+            renderCategories();
+            updateCounts();
+            const now = new Date('2025-09-28T10:38:00+05:30'); // Current IST time
+            const tenDaysMs = 10 * 24 * 60 * 60 * 1000;
+            const tenDaysAgo = new Date(now.getTime() - tenDaysMs);
+            const tenDaysAhead = new Date(now.getTime() + tenDaysMs);
+
+            ['live', 'upcoming', 'completed', 'total'].forEach(tab => {
+                const matches = allData.matches
+                    .filter(m => {
+                        const isLive = m.status === 'LIVE';
+                        const isUpcoming = m.status === 'NOT_STARTED';
+                        const isCompleted = m.status === 'COMPLETED';
+                        return (tab === 'live' && isLive) || (tab === 'upcoming' && isUpcoming) ||
+                               (tab === 'completed' && isCompleted) || tab === 'total';
+                    })
+                    .filter(m => currentCategory === 'All' || m.category === currentCategory)
+                    .filter(m => {
+                        const startTime = new Date(m.startTime);
+                        return startTime >= tenDaysAgo && startTime <= tenDaysAhead;
+                    });
+                renderGridCards(`${tab}Content`, matches, tab);
+            });
+        }
+
+        window.showAllStreams = function(streamsJson, matchId) {
+            const streams = JSON.parse(streamsJson.replace(/&quot;/g, '"'));
+            const modal = document.getElementById('streamsModal');
+            const streamsList = document.getElementById('streamsList');
+            streamsList.innerHTML = '';
+            
+            Object.entries(streams).forEach(([key, value]) => {
+                if (typeof value === 'string' && value.toLowerCase().includes('.m3u8') && value.startsWith('http')) {
+                    const button = document.createElement('button');
+                    button.textContent = key;
+                    button.style.padding = '8px 12px';
+                    button.style.background = '#ff4500';
+                    button.style.border = 'none';
+                    button.style.borderRadius = '6px';
+                    button.style.cursor = 'pointer';
+                    button.style.color = 'white';
+                    button.addEventListener('click', () => {
+                        window.location.href = `player.html?id=${encodeURIComponent(matchId)}&cdn=${encodeURIComponent(key)}`;
+                    });
+                    streamsList.appendChild(button);
+                }
+            });
+            
+            modal.style.display = 'flex';
+        };
+
+        document.getElementById('closeStreamsModal').addEventListener('click', () => {
+            document.getElementById('streamsModal').style.display = 'none';
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData();
+            setInterval(fetchData, 30000);
+
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelector('.tab.active').classList.remove('active');
+                    document.querySelector('.tab-content.active').classList.remove('active');
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                    renderAll();
+                });
+            });
+
+            // Default to Live tab
+            document.querySelector('[data-tab="live"]').click();
+        });
+    </script>
+</body>
+</html>
