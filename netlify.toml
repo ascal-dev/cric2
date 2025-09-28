@@ -11,3 +11,14 @@
   to = "/.netlify/functions/server2/:splat"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/player.html"
+  to = "/player.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/main.html"
+  status = 200
