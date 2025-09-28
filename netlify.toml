@@ -4,5 +4,15 @@
 
 [functions]
   node_bundler = "esbuild"
-  # Include all Node modules you are using in your functions
   external_node_modules = ["express", "cors", "serverless-http"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/server2/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/main.html"
+  status = 200
