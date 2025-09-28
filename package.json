@@ -1,0 +1,19 @@
+{
+  "name": "cric-2",
+  "version": "1.0.0",
+  "description": "Cricket streaming project deployed on Netlify Functions",
+  "main": "functions/server2.js",
+  "scripts": {
+    "start": "netlify dev",
+    "build": "echo 'No build step needed'"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "serverless-http": "^3.0.0"
+  },
+  "devDependencies": {},
+  "author": "Your Name",
+  "license": "MIT"
+}
+
